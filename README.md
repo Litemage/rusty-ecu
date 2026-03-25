@@ -18,6 +18,31 @@ visualize the turn signals, headlights, engine, etc.
 ## Resources
 
 - [Embedded Rust Book](https://docs.rust-embedded.org/book/intro/index.html)
+- [Embedonomicon](https://docs.rust-embedded.org/embedonomicon/)
+- [Cargo Book](https://doc.rust-lang.org/cargo/index.html)
+
+### Interesting Crates Being Used
+
+- [cortex-m-rt Crate](https://docs.rs/cortex-m-rt/latest/cortex_m_rt/)
+- [cortex-m](https://docs.rs/cortex-m/latest/cortex_m/)
+- [panic-halt](https://docs.rs/panic-halt/latest/panic_halt/)
+- [stm32f7xx_hal](https://docs.rs/stm32f7xx-hal/latest/stm32f7xx_hal/)
+
+## Building
+
+*This project was developed using RustRover by JetBrains, but can be compiled outside of it no problem*
+
+I can't quite figure out how to get RustRover to build the project correctly from the root (yet) so for now, to build
+firmware, you will have to run `cargo build --release` from the [ecu-stm32](./ecu-stm32) directory.
+
+## Useful Commands
+
+*Note this is targeted at us baby Rustaceans :)*
+
+Build and open this project's documentation:
+```shell
+cargo doc --open
+```
 
 ## Parts
 
