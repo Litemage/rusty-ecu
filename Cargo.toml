@@ -1,0 +1,9 @@
+[workspace]
+members = ["ecu-stm32", "ecu-core"]
+resolver = "3"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
