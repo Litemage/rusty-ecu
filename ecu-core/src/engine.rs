@@ -20,7 +20,8 @@ pub trait CylinderOutputs {
 
 // region public-functions
 
-/// Updates the cylinder states based off of a provided crank position sensor and applies the outputs
+/// Updates the cylinder states based off of a provided crank position sensor and applies the outputs.
+/// `pedal_cmd` is the requested command from the user, in the range [0, 65,535]
 pub fn engine_update(
     sensor: &impl CrankPositionSensor,
     outputs: &mut impl CylinderOutputs,
@@ -31,7 +32,6 @@ pub fn engine_update(
 }
 
 // endregion
-
 // region private-functions
 
 fn cylinders_for_angle(degrees: f32) -> [bool; 4] {

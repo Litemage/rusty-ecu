@@ -3,12 +3,9 @@ name = "ecu-stm32"
 version = "0.1.0"
 edition = "2024"
 
-[dependencies.stm32f7xx-hal]
-version = "0.7"
-features = ["stm32f767", "rt"]
-
 [dependencies]
 ecu-core = { path = "../ecu-core" }
 cortex-m = "0.7"    # ARM processor access stuff (reset, SYSTICK, etc)
+stm32f7xx-hal = { version = "0.8.0", features = ["stm32f767"] }  # Higher-level than stm32f7, which provides basic wrappers around registers
 cortex-m-rt = "0.7" # ARM processor runtime / initialization
 panic-halt = "0.2"  # Minimal panic handler, just loops forever

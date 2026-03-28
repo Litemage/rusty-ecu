@@ -1,11 +1,13 @@
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 use std::io::{self, Write};
-use ecu_core::{ecu_update, ECUSettings, ECUState, Signal};
+use ecu_core::{ecu_update, ECUSettings, ECUState};
 use ecu_core::engine::*;
 use ecu_core::lighting::LightController;
 use crossterm::terminal::{enable_raw_mode, disable_raw_mode};
-use crossterm::event::{self, Event, KeyCode, KeyEventKind};
+use crossterm::event;
+use crossterm::event::{Event, KeyEventKind, KeyCode};
+use ecu_core::input::SwitchInput;
 // region private-vars
 
 /// The main update loop delay
@@ -83,6 +85,20 @@ impl LightController for VirtualLight {
 
 // endregion
 
+// region virtual-switch
+
+struct VirtualSwitch {
+    on: bool
+}
+
+impl SwitchInput for VirtualSwitch {
+    fn read_switch(&self) -> bool {
+        return self.on;
+    }
+}
+
+// endregion
+
 // region misc
 
 fn get_time_ms() -> u64 {
@@ -100,8 +116,15 @@ fn main() {
     let mut l_turn = VirtualLight { on: false};
     let mut r_turn = VirtualLight { on: false};
     let mut headlights = VirtualLight { on: false};
+    let mut l_switch = VirtualSwitch { on: false};
+    let mut r_switch = VirtualSwitch { on: false};
+    let mut h_switch = VirtualSwitch { on: false};
+    let mut headlight_switch = VirtualSwitch { on: false};
     let mut ecu_state = ECUState::new();
     let ecu_settings = ECUSettings {signal_blink_period: 1000};
+
+    println!("Simulator for rusty-ecu. Press 'q' to quit. Controls:");
+    println!("'r' for right turn signal, 'l' for left, 'h' for hazards, 'o' for headlights");
 
     // Enables "raw" terminal mode - processes input silently
     enable_raw_mode().unwrap();
@@ -122,6 +145,10 @@ fn main() {
                 &mut l_turn,
                 &mut r_turn,
                 &mut headlights,
+                &mut l_switch,
+                &mut r_switch,
+                &mut h_switch,
+                &mut headlight_switch,
                 &mut ecu_state,
                 &ecu_settings
             );
@@ -139,10 +166,11 @@ fn main() {
             if let Event::Key(key) = event::read().unwrap() {
                 if key.kind == KeyEventKind::Press {
                     match key.code {
-                        KeyCode::Char('l') => { ecu_state.sig = if ecu_state.sig == Signal::LEFT {Signal::NONE} else {Signal::LEFT} }
-                        KeyCode::Char('r') => { ecu_state.sig = if ecu_state.sig == Signal::RIGHT {Signal::NONE} else {Signal::RIGHT} }
-                        KeyCode::Char('h') => { ecu_state.sig = if ecu_state.sig == Signal::HAZARD {Signal::NONE} else {Signal::HAZARD} }
-                        KeyCode::Char('o') => { ecu_state.headlights = !ecu_state.headlights }
+                        // Simulate inputs with keys (act as toggleable switches)
+                        KeyCode::Char('l') => { l_switch.on = ! l_switch.on; }
+                        KeyCode::Char('r') => { r_switch.on = ! r_switch.on; }
+                        KeyCode::Char('h') => { h_switch.on = ! h_switch.on; }
+                        KeyCode::Char('o') => { headlight_switch.on = ! headlight_switch.on; }
                         KeyCode::Char('q') => break, // Break out of simulator
                         _ => {/* Do nothing for everything else */}
                     }
@@ -164,16 +192,21 @@ fn print_engine_state(
     headlights: &VirtualLight,
 ) {
     let states = virtual_ignition.states;
-    print!("\r Time: {:0>8} Crank positon: [{:0>6}] deg -- Firing: [{}{}{}{}] -- L: [{}] R: [{}] -- H: [{}]",
+
+    print!("\r Time: {:0>8} Crank positon: [{:0>6}] deg -- Firing: [{}{}{}{}] -- L: [",
            get_time_ms(),
            virtual_crank.angle_deg,
            if states[0] {"1"} else {"-"},
            if states[1] {"2"} else {"-"},
            if states[2] {"3"} else {"-"},
            if states[3] {"4"} else {"-"},
-           if l_turn.on {"O"} else {"."},
-           if r_turn.on {"O"} else {"."},
-           if headlights.on {"O-O"} else {".-."}
     );
+    if l_turn.on { print!("{}", "O"); } else { print!("."); }
+    print!("] R: [");
+    if r_turn.on { print!("{}", "O"); } else { print!("."); }
+    print!("] -- H: [");
+    if headlights.on { print!("{}", "O-O"); } else { print!(".-."); }
+    print!("]");
+
     io::stdout().flush().unwrap();
 }
