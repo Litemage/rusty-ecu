@@ -1,0 +1,13 @@
+[default.general]
+chip = "STM32F767ZITx"
+
+[default.rtt]
+enabled = true
+# Maybe research channels and add them here?
+
+[default.gdb]
+enabled = false # Change this to true if you want GDB debugging
+gdb_connection_string = "127.0.0.1:3333"
+
+[default.flashing]
+enabled = true

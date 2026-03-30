@@ -43,8 +43,10 @@ Engine firing order is 1→4→3→2 (fire angles: cyl1=0°, cyl4=90°, cyl3=180
 ### `ecu-sim` — SIL simulator (host, `std`)
 Implements all `ecu-core` traits as virtual structs (`VirtualCrank`, `VirtualIgnition`, `VirtualLight`, `VirtualSwitch`). Runs an interactive terminal loop using `crossterm` with keyboard controls: `l`/`r`/`h`/`o` toggle left signal/right signal/hazards/headlights, `q` quits. The engine crank advances by 10°/tick at 10ms intervals to simulate rotation.
 
-### `ecu-stm32` — STM32F767 firmware (`no_std`, cross-compiled)
-Minimal stub that sets up the embedded runtime. Currently just loops. Hardware implementations of `ecu-core` traits go here. Targets `thumbv7em-none-eabihf`.
+### `ecu-stm32` — STM32F767ZI firmware (`no_std`, cross-compiled)
+Initializes the STM32F767ZI at 216 MHz and runs the ECU loop. `ECUHardware` in `hardware.rs` owns all GPIO pins and the SysTick-based delay timer; it exposes `get_input()`, `set_headlights()`, `set_turn_signal()`, and `delay_ms()`. The `ecu-core` traits are not yet fully wired here (the `ecu_update` call in `main.rs` is incomplete). Targets `thumbv7em-none-eabihf`.
+
+Flash to hardware with `cargo embed -p ecu-stm32` (requires `probe-rs`/`cargo-embed` and an ST-Link). `Embed.toml` configures the chip, enables RTT logging, and enables flashing by default.
 
 ## Key design pattern
 

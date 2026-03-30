@@ -1,0 +1,5 @@
+# This file is necessary to make ecu-stm32 buildable from the root
+# Cargo only walks "up" directories for .config/ directories, so it
+# never sees a similar file locarted in ecu-stm32
+[target.thumbv7em-none-eabihf]
+rustflags = ["-C", "link-arg=-Tlink.x"]

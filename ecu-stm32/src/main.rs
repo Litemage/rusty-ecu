@@ -1,31 +1,51 @@
 #![no_std]  // Don't link standard lib
 #![no_main] // Don't use standard entry point
 
-use panic_halt as _; // Pulls in the panic handler - halts processor on panic
+mod hardware;
+
 use cortex_m_rt::entry;
-use stm32f7xx_hal::{pac, prelude::*, timer::Timer};
+use rtt_target::{rprintln, rtt_init_print};
+use hardware::ECUHardware;
+use ecu_core::{ecu_update, ECUSettings, ECUState};
+use panic_halt as _; // Required for the panic handler
+
+const LOOP_PERIOD_MS: u32 = 5;
+/// Degrees to advance the simulated crank each loop tick.
+/// At 5ms/tick this gives ~333 RPM equivalent.
+const CRANK_ADVANCE_DEG: f32 = 10.0;
+
+const ECU_SETTINGS: ECUSettings = ECUSettings { signal_blink_period: 1000 };
 
 #[entry]
-// The syntax (-> !) indicates the function never returns (required by #entry)
 fn main() -> ! {
-    // Device peripherals
-    let dp = pac::Peripherals::take().unwrap();
-    // Cortex-m peripherals
+    rtt_init_print!();
+
+    let dp = stm32f7xx_hal::pac::Peripherals::take().unwrap();
     let cp = cortex_m::Peripherals::take().unwrap();
 
-    let rcc = dp.RCC.constrain();
-    let clocks = rcc.cfgr.sysclk(216.MHz()).freeze();
-
-    let timer = Timer::syst(cp.SYST, &clocks);
-    let mut delay = timer.delay();
-
-    let gpiob = dp.GPIOB.split();
-    let mut led = gpiob.pb0.into_push_pull_output();
+    let mut ecu_hw = ECUHardware::init(dp, cp);
+    let mut ecu_state = ECUState::new();
+    let mut time_ms: u64 = 0;
 
     loop {
-        led.set_high();
-        delay.delay_ms(500u32);
-        led.set_low();
-        delay.delay_ms(500u32);
+        ecu_update(
+            || time_ms,
+            &ecu_hw.crank,
+            &mut ecu_hw.cylinders,
+            &mut ecu_hw.l_turn,
+            &mut ecu_hw.r_turn,
+            &mut ecu_hw.headlights_out,
+            &mut ecu_hw.l_switch,
+            &mut ecu_hw.r_switch,
+            &mut ecu_hw.h_switch,
+            &mut ecu_hw.headlight_switch,
+            &mut ecu_state,
+            &ECU_SETTINGS,
+        );
+
+        ecu_hw.crank.increment(CRANK_ADVANCE_DEG);
+
+        ecu_hw.delay_ms(LOOP_PERIOD_MS);
+        time_ms += LOOP_PERIOD_MS as u64;
     }
 }

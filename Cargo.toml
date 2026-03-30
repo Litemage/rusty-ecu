@@ -4,6 +4,8 @@ resolver = "3"
 
 [profile.dev]
 panic = "abort"
+debug = true
+opt-level = 0    # no optimization -- every line stays as written
 
 [profile.release]
 panic = "abort"

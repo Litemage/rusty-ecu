@@ -3,9 +3,16 @@ name = "ecu-stm32"
 version = "0.1.0"
 edition = "2024"
 
+[package.metadata.probe-rs]
+chip = "STM32F767ZITx"
+
 [dependencies]
 ecu-core = { path = "../ecu-core" }
-cortex-m = "0.7"    # ARM processor access stuff (reset, SYSTICK, etc)
+rtt-target = "0.6.2" # Allows RTT debugging, along side GDB
+# Critical-section-single-core needed for rtt-target, as noted in rtt-target's docs
+cortex-m = {version = "0.7.7", features = ["critical-section-single-core"]}    # ARM processor access stuff (reset, SYSTICK, etc)
+# Note that this crate provides higher-level access than the stm32f7 PAC does -- this is the APIs we're more
+# used to working with, but also re-exports the PAC as `pac`, and consumes it.
 stm32f7xx-hal = { version = "0.8.0", features = ["stm32f767"] }  # Higher-level than stm32f7, which provides basic wrappers around registers
-cortex-m-rt = "0.7" # ARM processor runtime / initialization
-panic-halt = "0.2"  # Minimal panic handler, just loops forever
+cortex-m-rt = "0.7.5" # ARM processor runtime / initialization
+panic-halt = "1.0.0"  # Minimal panic handler, just loops forever
