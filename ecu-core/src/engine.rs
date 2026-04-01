@@ -2,6 +2,8 @@
 
 // region public-traits
 
+use crate::input::PedalInput;
+
 /// Defines a source for motor crank shaft position.
 pub trait CrankPositionSensor {
     /// Reports the current position of the crank sensor, in positive, unbounded degrees.
@@ -16,6 +18,12 @@ pub trait CylinderOutputs {
     fn set_all(&mut self, states: [bool; 4]);
 }
 
+pub trait Throttle {
+    /// Sets the throttle to a value between closed and full open mapped to the range [0,255] with
+    /// 0 being fully closed, and 255 being fully open.
+    fn set_throttle(&mut self, value: u8);
+}
+
 // endregion
 
 // region public-functions
@@ -25,10 +33,16 @@ pub trait CylinderOutputs {
 pub fn engine_update(
     sensor: &impl CrankPositionSensor,
     outputs: &mut impl CylinderOutputs,
+    throttle: &mut impl Throttle,
+    accel_pedal: &impl PedalInput,
 ) {
     let degrees = sensor.read_angle();
     let states = cylinders_for_angle(degrees);
     outputs.set_all(states);
+
+    // Process the pedal request - no filtering for now, just set the throttle to whatever
+    // the pedal is.
+    throttle.set_throttle(accel_pedal.read_pedal());
 }
 
 // endregion

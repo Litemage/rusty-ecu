@@ -1,6 +1,6 @@
 // region virtual-ignition-controller
 
-use ecu_core::engine::{CrankPositionSensor, CylinderOutputs};
+use ecu_core::engine::{CrankPositionSensor, CylinderOutputs, Throttle};
 use ecu_core::input::{PedalInput, SwitchInput};
 use ecu_core::lighting::LightController;
 
@@ -19,6 +19,32 @@ impl CylinderOutputs for VirtualIgnition {
 
 impl VirtualIgnition {
     pub fn new() -> VirtualIgnition { VirtualIgnition {states: [false; 4]}}
+}
+
+// endregion
+
+// region virtual-throttle
+
+pub struct VirtualThrottle {
+    throttle: u8,
+}
+
+impl Throttle for VirtualThrottle {
+    fn set_throttle(&mut self, value: u8) {
+        self.throttle = value;
+    }
+}
+
+impl VirtualThrottle {
+    pub fn new() -> Self {
+        VirtualThrottle {
+            throttle: 0,
+        }
+    }
+
+    pub fn read_throttle(&self) -> u8 {
+        self.throttle
+    }
 }
 
 // endregion

@@ -5,7 +5,7 @@ use eframe::Frame;
 use egui::{Context, Ui};
 use ecu_core::{ecu_update, ECUSettings, ECUState};
 use ecu_core::input::PedalInput;
-use crate::stub::{VirtualCrank, VirtualIgnition, VirtualLight, VirtualPedal, VirtualSwitch};
+use crate::stub::{VirtualCrank, VirtualIgnition, VirtualLight, VirtualPedal, VirtualSwitch, VirtualThrottle};
 
 // region private-vars
 
@@ -30,6 +30,7 @@ fn get_time_ms() -> u64 {
 pub struct ECUSimApp {
     virtual_crank: VirtualCrank,
     virtual_ignition: VirtualIgnition,
+    virtual_throttle: VirtualThrottle,
     l_turn: VirtualLight,
     r_turn: VirtualLight,
     headlights: VirtualLight,
@@ -49,6 +50,7 @@ impl ECUSimApp {
         ECUSimApp {
             virtual_crank: VirtualCrank::new(),
             virtual_ignition: VirtualIgnition::new(),
+            virtual_throttle: VirtualThrottle::new(),
             l_turn: VirtualLight { on: false},
             r_turn: VirtualLight { on: false},
             headlights: VirtualLight { on: false},
@@ -74,6 +76,7 @@ impl ECUSimApp {
                 &get_time_ms,
                 &self.virtual_crank,
                 &mut self.virtual_ignition,
+                &mut self.virtual_throttle,
                 &mut self.l_turn,
                 &mut self.r_turn,
                 &mut self.headlights,
@@ -81,12 +84,13 @@ impl ECUSimApp {
                 &mut self.r_switch,
                 &mut self.h_switch,
                 &mut self.headlight_switch,
+                &mut self.accel_pedal,
                 &mut self.ecu_state,
                 &self.ecu_settings
             );
 
             // Advance the engine and pretend it's running
-            self.virtual_crank.increment(ENGINE_IDLE + (ENGINE_ADVANCE_DEG * (self.accel_pedal.read_pedal() as f32 / 255.0)));
+            self.virtual_crank.increment(ENGINE_IDLE + (ENGINE_ADVANCE_DEG * (self.virtual_throttle.read_throttle() as f32 / 255.0)));
         }
     }
 }
@@ -109,6 +113,10 @@ impl eframe::App for ECUSimApp {
                 egui::Vec2::new(150.0, 100.0),
                 egui::Sense::hover()
             );
+
+            ui.heading("Raw Engine Values");
+            raw_value_widget(ui, self.virtual_throttle.read_throttle(), "Throttle Value (u8 %)");
+            raw_value_widget(ui, self.accel_pedal.read_pedal(), "Accelerator Pedal (u8 %)");
 
             let light_origin = light_response.rect.min; // Top-left corner of the paint region
             let engine_origin = engine_response.rect.min;
@@ -134,6 +142,13 @@ impl eframe::App for ECUSimApp {
             ui.add(egui::Slider::new(&mut self.brake_pedal.val, 0..=255).text("Brake"));
         });
     }
+}
+
+fn raw_value_widget(ui: &mut Ui, val: impl std::fmt::Display, label: &str) {
+    ui.horizontal(|ui| {
+        ui.label(label);
+        ui.label(format!("{}", val));
+    });
 }
 
 fn sig_color_from_active(active: bool) -> egui::Color32 {

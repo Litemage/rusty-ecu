@@ -116,6 +116,7 @@ pub fn ecu_update(
     get_time_ms: impl Fn() -> u64,
     crank_sensor: &impl engine::CrankPositionSensor,
     c_outputs: &mut impl engine::CylinderOutputs,
+    throttle: &mut impl engine::Throttle,
     l_turn: &mut impl lighting::LightController,
     r_turn: &mut impl lighting::LightController,
     headlights: &mut impl lighting::LightController,
@@ -123,10 +124,11 @@ pub fn ecu_update(
     r_switch: &mut impl input::SwitchInput,
     h_switch: &mut impl input::SwitchInput,
     headlight_switch: &mut impl input::SwitchInput,
+    accel_pedal: &mut impl input::PedalInput,
     ecu_state: &mut ECUState,
     ecu_settings: &ECUSettings
 ) {
-    engine_update(crank_sensor, c_outputs);
+    engine_update(crank_sensor, c_outputs, throttle, accel_pedal);
 
     // Updates the ECU state with button/switch input collected from the embedded system
     ecu_update_state(
