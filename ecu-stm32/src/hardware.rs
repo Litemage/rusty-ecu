@@ -4,11 +4,11 @@ use stm32f7xx_hal::prelude::*;
 use stm32f7xx_hal::gpio::{Input, Output, Pin, PinState, PullDown, PushPull};
 use stm32f7xx_hal::pac::Peripherals;
 use stm32f7xx_hal::timer::SysDelay;
-use ecu_core::engine::{CrankPositionSensor, CylinderOutputs};
+use ecu_core::engine::{CrankPositionSensor, CylinderOutputs, Throttle};
 use ecu_core::lighting::LightController;
-use ecu_core::input::SwitchInput;
+use ecu_core::input::{PedalInput, SwitchInput};
 
-// region sim-crank
+// region engine-impls
 
 /// Simulated crank position sensor — advances by a fixed amount each loop tick.
 /// Replace with a real hall-effect/optical sensor impl when hardware is available.
@@ -28,10 +28,6 @@ impl SimCrank {
     }
 }
 
-// endregion
-
-// region stub-cylinders
-
 /// No-op cylinder outputs — placeholder until ignition coil drivers are wired up.
 pub struct StubCylinders;
 
@@ -39,9 +35,18 @@ impl CylinderOutputs for StubCylinders {
     fn set_all(&mut self, _states: [bool; 4]) {}
 }
 
+/// Stub for future implementation of throttle TODO: Implement this.
+pub struct StubThrottle;
+
+impl Throttle for StubThrottle {
+    fn set_throttle(&mut self, value: u8) {
+        // TODO: Implement this
+    }
+}
+
 // endregion
 
-// region hw-output-light
+// region i/o
 
 /// A single push-pull GPIO output implementing `LightController`.
 pub struct HwOutputLight<const PORT: char, const PIN: u8>(pub Pin<PORT, PIN, Output<PushPull>>);
@@ -56,16 +61,21 @@ impl<const PORT: char, const PIN: u8> LightController for HwOutputLight<PORT, PI
     }
 }
 
-// endregion
-
-// region hw-input-switch
-
 /// A single pull-down GPIO input implementing `SwitchInput`.
 pub struct HwInputSwitch<const PORT: char, const PIN: u8>(pub Pin<PORT, PIN, Input<PullDown>>);
 
 impl<const PORT: char, const PIN: u8> SwitchInput for HwInputSwitch<PORT, PIN> {
     fn read_switch(&self) -> bool {
         self.0.is_high()
+    }
+}
+
+/// A stub where we will put an input pedal. TODO: Implement this.
+pub struct StubInputPedal;
+
+impl PedalInput for StubInputPedal {
+    fn read_pedal(&self) -> u8 {
+        return 0;
     }
 }
 
@@ -80,6 +90,7 @@ pub struct ECUHardware {
     // Engine
     pub crank:     SimCrank,
     pub cylinders: StubCylinders,
+    pub throttle:  StubThrottle,
 
     // Outputs
     pub l_turn:          HwOutputLight<'E', 11>,
@@ -91,6 +102,7 @@ pub struct ECUHardware {
     pub r_switch:         HwInputSwitch<'B', 9>,
     pub h_switch:         HwInputSwitch<'A', 5>,
     pub headlight_switch: HwInputSwitch<'A', 6>,
+    pub accel_pedal:      StubInputPedal,
 }
 
 impl ECUHardware {
@@ -111,6 +123,7 @@ impl ECUHardware {
 
             crank:     SimCrank { angle_deg: 0.0 },
             cylinders: StubCylinders,
+            throttle:  StubThrottle,
 
             l_turn:         HwOutputLight(gpioe.pe11.into_push_pull_output()),
             r_turn:         HwOutputLight(gpiof.pf13.into_push_pull_output()),
@@ -120,6 +133,7 @@ impl ECUHardware {
             r_switch:         HwInputSwitch(gpiob.pb9.into_pull_down_input()),
             h_switch:         HwInputSwitch(gpioa.pa5.into_pull_down_input()),
             headlight_switch: HwInputSwitch(gpioa.pa6.into_pull_down_input()),
+            accel_pedal:      StubInputPedal,
         }
     }
 

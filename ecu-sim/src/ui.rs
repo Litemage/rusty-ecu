@@ -4,6 +4,7 @@ use std::time::{Duration, Instant};
 use eframe::Frame;
 use egui::{Context, Ui};
 use ecu_core::{ecu_update, ECUSettings, ECUState};
+use ecu_core::engine::CrankPositionSensor;
 use ecu_core::input::PedalInput;
 use crate::stub::{VirtualCrank, VirtualIgnition, VirtualLight, VirtualPedal, VirtualSwitch, VirtualThrottle};
 
@@ -114,10 +115,6 @@ impl eframe::App for ECUSimApp {
                 egui::Sense::hover()
             );
 
-            ui.heading("Raw Engine Values");
-            raw_value_widget(ui, self.virtual_throttle.read_throttle(), "Throttle Value (u8 %)");
-            raw_value_widget(ui, self.accel_pedal.read_pedal(), "Accelerator Pedal (u8 %)");
-
             let light_origin = light_response.rect.min; // Top-left corner of the paint region
             let engine_origin = engine_response.rect.min;
             let lights = [
@@ -129,6 +126,12 @@ impl eframe::App for ECUSimApp {
 
             draw_car_lights(&light_painter, &light_origin, 10.0, lights);
             draw_engine_lights(&engine_painter, &engine_origin, 10.0, self.virtual_ignition.states);
+
+            ui.heading("Raw Engine Values");
+            raw_value_widget(ui, self.virtual_throttle.read_throttle(), "Throttle Value (u8 %)");
+            raw_value_widget(ui, self.accel_pedal.read_pedal(), "Accelerator Pedal (u8 %)");
+            raw_value_widget(ui, self.virtual_crank.read_angle(), "Crank position sensor (degrees)");
+            raw_value_widget(ui, self.virtual_ignition.states, "Ignition states");
 
             ui.separator();
             ui.heading("ECU Inputs");
@@ -144,10 +147,10 @@ impl eframe::App for ECUSimApp {
     }
 }
 
-fn raw_value_widget(ui: &mut Ui, val: impl std::fmt::Display, label: &str) {
+fn raw_value_widget(ui: &mut Ui, val: impl std::fmt::Debug, label: &str) {
     ui.horizontal(|ui| {
         ui.label(label);
-        ui.label(format!("{}", val));
+        ui.label(format!("{:?}", val));
     });
 }
 

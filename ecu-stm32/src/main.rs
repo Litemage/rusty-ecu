@@ -36,6 +36,7 @@ fn main() -> ! {
             || time_ms,
             &ecu_hw.crank,
             &mut ecu_hw.cylinders,
+            &mut ecu_hw.throttle,
             &mut ecu_hw.l_turn,
             &mut ecu_hw.r_turn,
             &mut ecu_hw.headlights_out,
@@ -43,13 +44,14 @@ fn main() -> ! {
             &mut ecu_hw.r_switch,
             &mut ecu_hw.h_switch,
             &mut ecu_hw.headlight_switch,
+            &mut ecu_hw.accel_pedal,
             &mut ecu_state,
             &ECU_SETTINGS,
         );
 
         ecu_hw.crank.increment(CRANK_ADVANCE_DEG);
 
-        // TODO: Change this to use a general-purpose timer to keep time (interrupt increments time variable)
+        // TODO: Change this to use a general-purpose timer to keep time (interrupt increments a time variable)
         ecu_hw.delay_ms(LOOP_PERIOD_MS);
         time_ms += LOOP_PERIOD_MS as u64;
     }
