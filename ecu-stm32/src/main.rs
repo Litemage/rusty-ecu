@@ -1,3 +1,5 @@
+//! Mock-ECU program designed to test the viability of embedded rust. Interfaces with a test bench
+//! that will visualize all the I/O. Logic lives in ecu-core library.
 #![no_std]  // Don't link standard lib
 #![no_main] // Don't use standard entry point
 
@@ -9,11 +11,13 @@ use hardware::ECUHardware;
 use ecu_core::{ecu_update, ECUSettings, ECUState};
 use panic_halt as _; // Required for the panic handler
 
+/// The delay executed at the end of each loop
 const LOOP_PERIOD_MS: u32 = 5;
 /// Degrees to advance the simulated crank each loop tick.
 /// At 5ms/tick this gives ~333 RPM equivalent.
 const CRANK_ADVANCE_DEG: f32 = 10.0;
 
+/// ECU compile-time configuration
 const ECU_SETTINGS: ECUSettings = ECUSettings { signal_blink_period: 1000 };
 
 #[entry]
@@ -45,6 +49,7 @@ fn main() -> ! {
 
         ecu_hw.crank.increment(CRANK_ADVANCE_DEG);
 
+        // TODO: Change this to use a general-purpose timer to keep time (interrupt increments time variable)
         ecu_hw.delay_ms(LOOP_PERIOD_MS);
         time_ms += LOOP_PERIOD_MS as u64;
     }

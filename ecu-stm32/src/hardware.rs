@@ -1,3 +1,5 @@
+//! Mock ECU hardware interface - owns controller and CPU peripherals. All hardware interraction
+//! is done through ECUHardware.
 use stm32f7xx_hal::prelude::*;
 use stm32f7xx_hal::gpio::{Input, Output, Pin, PinState, PullDown, PushPull};
 use stm32f7xx_hal::pac::Peripherals;
@@ -71,6 +73,7 @@ impl<const PORT: char, const PIN: u8> SwitchInput for HwInputSwitch<PORT, PIN> {
 
 // region ecu-hardware
 
+/// Owns all peripherals and exposes all hardware interraction the ECU uses
 pub struct ECUHardware {
     pub timer: SysDelay,
 
@@ -91,6 +94,7 @@ pub struct ECUHardware {
 }
 
 impl ECUHardware {
+    /// Initializes a new ECUHardware structure. Takes ownership of all peripherals
     pub fn init(dp: Peripherals, cp: cortex_m::Peripherals) -> Self {
         let rcc = dp.RCC.constrain();
         let clocks = rcc.cfgr.sysclk(216.MHz()).freeze();
@@ -119,6 +123,7 @@ impl ECUHardware {
         }
     }
 
+    /// Use the Cortex-M SysTick delay
     pub fn delay_ms(&mut self, ms: u32) {
         self.timer.delay_ms(ms);
     }

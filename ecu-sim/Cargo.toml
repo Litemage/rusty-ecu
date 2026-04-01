@@ -6,3 +6,5 @@ edition = "2024"
 [dependencies]
 ecu-core = { path = "../ecu-core" }
 crossterm = "0.29.0"
+egui = "0.34.1"   # Creates UIs
+eframe = "0.34.1" # Renders GUIs made by egui
