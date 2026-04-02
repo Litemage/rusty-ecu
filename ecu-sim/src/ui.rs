@@ -1,12 +1,14 @@
+use crate::stub::{
+    VirtualCrank, VirtualIgnition, VirtualLight, VirtualPedal, VirtualSwitch, VirtualThrottle,
+};
+use ecu_core::engine::CrankPositionSensor;
+use ecu_core::input::PedalInput;
+use ecu_core::{ECUSettings, ECUState, ecu_update};
+use eframe::Frame;
+use egui::{Context, Ui};
 use std::ops::Sub;
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
-use eframe::Frame;
-use egui::{Context, Ui};
-use ecu_core::{ecu_update, ECUSettings, ECUState};
-use ecu_core::engine::CrankPositionSensor;
-use ecu_core::input::PedalInput;
-use crate::stub::{VirtualCrank, VirtualIgnition, VirtualLight, VirtualPedal, VirtualSwitch, VirtualThrottle};
 
 // region private-vars
 
@@ -52,17 +54,19 @@ impl ECUSimApp {
             virtual_crank: VirtualCrank::new(),
             virtual_ignition: VirtualIgnition::new(),
             virtual_throttle: VirtualThrottle::new(),
-            l_turn: VirtualLight { on: false},
-            r_turn: VirtualLight { on: false},
-            headlights: VirtualLight { on: false},
-            l_switch: VirtualSwitch { on: false},
-            r_switch: VirtualSwitch { on: false},
-            h_switch: VirtualSwitch { on: false},
-            headlight_switch: VirtualSwitch { on: false},
-            accel_pedal: VirtualPedal {val: 0},
-            brake_pedal: VirtualPedal {val: 0},
+            l_turn: VirtualLight { on: false },
+            r_turn: VirtualLight { on: false },
+            headlights: VirtualLight { on: false },
+            l_switch: VirtualSwitch { on: false },
+            r_switch: VirtualSwitch { on: false },
+            h_switch: VirtualSwitch { on: false },
+            headlight_switch: VirtualSwitch { on: false },
+            accel_pedal: VirtualPedal { val: 0 },
+            brake_pedal: VirtualPedal { val: 0 },
             ecu_state: ECUState::new(),
-            ecu_settings: ECUSettings {signal_blink_period: 1000},
+            ecu_settings: ECUSettings {
+                signal_blink_period: 1000,
+            },
             last_run: Instant::now().sub(Duration::from_hours(10)),
         }
     }
@@ -87,11 +91,14 @@ impl ECUSimApp {
                 &mut self.headlight_switch,
                 &mut self.accel_pedal,
                 &mut self.ecu_state,
-                &self.ecu_settings
+                &self.ecu_settings,
             );
 
             // Advance the engine and pretend it's running
-            self.virtual_crank.increment(ENGINE_IDLE + (ENGINE_ADVANCE_DEG * (self.virtual_throttle.read_throttle() as f32 / 255.0)));
+            self.virtual_crank.increment(
+                ENGINE_IDLE
+                    + (ENGINE_ADVANCE_DEG * (self.virtual_throttle.read_throttle() as f32 / 255.0)),
+            );
         }
     }
 }
@@ -105,15 +112,11 @@ impl eframe::App for ECUSimApp {
     fn ui(&mut self, ui: &mut Ui, _frame: &mut Frame) {
         egui::CentralPanel::default().show_inside(ui, |ui| {
             ui.heading("Front Lights");
-            let (light_response, light_painter) = ui.allocate_painter(
-                egui::Vec2::new(150.0, 50.0),
-                egui::Sense::hover()
-            );
+            let (light_response, light_painter) =
+                ui.allocate_painter(egui::Vec2::new(150.0, 50.0), egui::Sense::hover());
             ui.heading("Engine Ignition");
-            let (engine_response, engine_painter) = ui.allocate_painter(
-                egui::Vec2::new(150.0, 100.0),
-                egui::Sense::hover()
-            );
+            let (engine_response, engine_painter) =
+                ui.allocate_painter(egui::Vec2::new(150.0, 100.0), egui::Sense::hover());
 
             let light_origin = light_response.rect.min; // Top-left corner of the paint region
             let engine_origin = engine_response.rect.min;
@@ -125,12 +128,29 @@ impl eframe::App for ECUSimApp {
             ];
 
             draw_car_lights(&light_painter, &light_origin, 10.0, lights);
-            draw_engine_lights(&engine_painter, &engine_origin, 10.0, self.virtual_ignition.states);
+            draw_engine_lights(
+                &engine_painter,
+                &engine_origin,
+                10.0,
+                self.virtual_ignition.states,
+            );
 
             ui.heading("Raw Engine Values");
-            raw_value_widget(ui, self.virtual_throttle.read_throttle(), "Throttle Value (u8 %)");
-            raw_value_widget(ui, self.accel_pedal.read_pedal(), "Accelerator Pedal (u8 %)");
-            raw_value_widget(ui, self.virtual_crank.read_angle(), "Crank position sensor (degrees)");
+            raw_value_widget(
+                ui,
+                self.virtual_throttle.read_throttle(),
+                "Throttle Value (u8 %)",
+            );
+            raw_value_widget(
+                ui,
+                self.accel_pedal.read_pedal(),
+                "Accelerator Pedal (u8 %)",
+            );
+            raw_value_widget(
+                ui,
+                self.virtual_crank.read_angle(),
+                "Crank position sensor (degrees)",
+            );
             raw_value_widget(ui, self.virtual_ignition.states, "Ignition states");
 
             ui.separator();
@@ -155,15 +175,27 @@ fn raw_value_widget(ui: &mut Ui, val: impl std::fmt::Debug, label: &str) {
 }
 
 fn sig_color_from_active(active: bool) -> egui::Color32 {
-    if active {egui::Color32::YELLOW} else {egui::Color32::GRAY}
+    if active {
+        egui::Color32::YELLOW
+    } else {
+        egui::Color32::GRAY
+    }
 }
 
 fn h_color_from_active(active: bool) -> egui::Color32 {
-    if active {egui::Color32::WHITE} else {egui::Color32::GRAY}
+    if active {
+        egui::Color32::WHITE
+    } else {
+        egui::Color32::GRAY
+    }
 }
 
 fn cyl_color_from_active(active: bool) -> egui::Color32 {
-    if active {egui::Color32::LIGHT_RED} else {egui::Color32::GRAY}
+    if active {
+        egui::Color32::LIGHT_RED
+    } else {
+        egui::Color32::GRAY
+    }
 }
 
 /// Draw circles representing the car lights. The `lights` array contains all the values of lights:
@@ -181,14 +213,25 @@ fn draw_car_lights(painter: &egui::Painter, origin: &egui::Pos2, radius: f32, li
     painter.circle_filled(r_sig, radius, sig_color_from_active(lights[3]));
 }
 
-fn draw_engine_lights(painter: &egui::Painter, origin: &egui::Pos2, radius: f32, lights: [bool; 4]) {
+fn draw_engine_lights(
+    painter: &egui::Painter,
+    origin: &egui::Pos2,
+    radius: f32,
+    lights: [bool; 4],
+) {
     let diameter = 2.0 * radius;
 
     let cylindars = [
         egui::Pos2::new(origin.x + (2.0 * diameter), origin.y + 30.0),
         egui::Pos2::new(origin.x + (3.5 * diameter), origin.y + 30.0),
-        egui::Pos2::new(origin.x + (2.0 * diameter), origin.y + (2.0 * diameter) + 30.0),
-        egui::Pos2::new(origin.x + (3.5 * diameter), origin.y + (2.0 * diameter) + 30.0),
+        egui::Pos2::new(
+            origin.x + (2.0 * diameter),
+            origin.y + (2.0 * diameter) + 30.0,
+        ),
+        egui::Pos2::new(
+            origin.x + (3.5 * diameter),
+            origin.y + (2.0 * diameter) + 30.0,
+        ),
     ];
 
     for (i, c) in cylindars.iter().enumerate() {

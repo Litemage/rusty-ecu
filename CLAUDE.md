@@ -33,8 +33,10 @@ The heart of the project. Contains all ECU logic as pure Rust with no hardware d
 All hardware interaction is abstracted behind traits:
 - `engine::CrankPositionSensor` — reads crank angle in degrees
 - `engine::CylinderOutputs` — sets spark plug states for 4 cylinders
+- `engine::Throttle` — sets throttle position (0–255)
 - `lighting::LightController` — get/set a single light on/off
 - `input::SwitchInput` — reads a boolean switch state
+- `input::PedalInput` — reads an analog pedal position (0–255)
 
 The primary entry point is `ecu_update(...)` in `lib.rs`, called periodically by the platform layer. It orchestrates engine firing (`engine_update`), turn signal/hazard/headlight state (`ecu_update_state`, `ecu_update_turn_signals`), and blink timing (`lighting::signal_for_time`).
 
@@ -44,7 +46,7 @@ Engine firing order is 1→4→3→2 (fire angles: cyl1=0°, cyl4=90°, cyl3=180
 Implements all `ecu-core` traits as virtual structs (`VirtualCrank`, `VirtualIgnition`, `VirtualLight`, `VirtualSwitch`). Runs an interactive terminal loop using `crossterm` with keyboard controls: `l`/`r`/`h`/`o` toggle left signal/right signal/hazards/headlights, `q` quits. The engine crank advances by 10°/tick at 10ms intervals to simulate rotation.
 
 ### `ecu-stm32` — STM32F767ZI firmware (`no_std`, cross-compiled)
-Initializes the STM32F767ZI at 216 MHz and runs the ECU loop. `ECUHardware` in `hardware.rs` owns all GPIO pins and the SysTick-based delay timer; it exposes `get_input()`, `set_headlights()`, `set_turn_signal()`, and `delay_ms()`. The `ecu-core` traits are not yet fully wired here (the `ecu_update` call in `main.rs` is incomplete). Targets `thumbv7em-none-eabihf`.
+Initializes the STM32F767ZI at 216 MHz and runs the ECU loop. `ECUHardware` in `hardware.rs` owns all GPIO pins and the SysTick-based delay timer. `ecu_update` is fully wired in `main.rs`. The crank uses a simulated `SimCrank` (no real sensor yet); cylinder outputs and throttle are stubs pending hardware wiring. Targets `thumbv7em-none-eabihf`.
 
 Flash to hardware with `cargo embed -p ecu-stm32` (requires `probe-rs`/`cargo-embed` and an ST-Link). `Embed.toml` configures the chip, enables RTT logging, and enables flashing by default.
 

@@ -7,7 +7,7 @@ use ecu_core::lighting::LightController;
 /// Mock cylinder which will hold the state of each cylinder
 pub struct VirtualIgnition {
     /// State of each cylinder, held in an array
-    pub states: [bool; 4]
+    pub states: [bool; 4],
 }
 
 // Implement the cylinder outputs
@@ -18,7 +18,9 @@ impl CylinderOutputs for VirtualIgnition {
 }
 
 impl VirtualIgnition {
-    pub fn new() -> VirtualIgnition { VirtualIgnition {states: [false; 4]}}
+    pub fn new() -> VirtualIgnition {
+        VirtualIgnition { states: [false; 4] }
+    }
 }
 
 // endregion
@@ -37,9 +39,7 @@ impl Throttle for VirtualThrottle {
 
 impl VirtualThrottle {
     pub fn new() -> Self {
-        VirtualThrottle {
-            throttle: 0,
-        }
+        VirtualThrottle { throttle: 0 }
     }
 
     pub fn read_throttle(&self) -> u8 {
@@ -53,7 +53,7 @@ impl VirtualThrottle {
 
 /// A virtual crank sensor
 pub struct VirtualCrank {
-    angle_deg: f32
+    angle_deg: f32,
 }
 
 // Implement the CrankPositionSensor trait
@@ -64,7 +64,9 @@ impl CrankPositionSensor for VirtualCrank {
 }
 
 impl VirtualCrank {
-    pub fn new() -> VirtualCrank { VirtualCrank {angle_deg: 0.0}}
+    pub fn new() -> VirtualCrank {
+        VirtualCrank { angle_deg: 0.0 }
+    }
 
     /// Increment the virtual crank sensor by `deg` degrees
     pub fn increment(&mut self, deg: f32) {
@@ -81,7 +83,7 @@ impl VirtualCrank {
 // region virtual-lights
 
 pub struct VirtualLight {
-    pub on: bool
+    pub on: bool,
 }
 
 impl LightController for VirtualLight {
@@ -99,7 +101,7 @@ impl LightController for VirtualLight {
 // region virtual-switch
 
 pub struct VirtualSwitch {
-   pub on: bool
+    pub on: bool,
 }
 
 impl SwitchInput for VirtualSwitch {
@@ -109,7 +111,7 @@ impl SwitchInput for VirtualSwitch {
 }
 
 pub struct VirtualPedal {
-    pub val: u8
+    pub val: u8,
 }
 
 impl PedalInput for VirtualPedal {

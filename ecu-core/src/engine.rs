@@ -96,10 +96,10 @@ mod tests {
         // fire_angles: cyl1=0, cyl4=90, cyl3=180, cyl2=270
         // Expected firing order: 1 → 4 → 3 → 2
         let expected_order = [
-            (0, 0),    // cylinder 1 fires at 0
-            (90, 3),   // cylinder 4 fires at 90
-            (180, 2),  // cylinder 3 fires at 180
-            (270, 1),  // cylinder 2 fires at 270
+            (0, 0),   // cylinder 1 fires at 0
+            (90, 3),  // cylinder 4 fires at 90
+            (180, 2), // cylinder 3 fires at 180
+            (270, 1), // cylinder 2 fires at 270
         ];
 
         for (angle, expected_index) in expected_order {

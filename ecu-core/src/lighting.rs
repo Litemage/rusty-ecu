@@ -17,7 +17,7 @@ pub fn signal_for_time(ts_ms: u64, per_ms: u32) -> bool {
     // Modulo calculates how far "into" the period we are, and if we're in the top half, the signal
     // should be inactive (active would be 180 deg out of phase in reference to start of period)
     // Note this logic would break for floating-point values
-    ! ((ts_ms % per_ms as u64) > (per_ms as u64 >> 1u64))
+    !((ts_ms % per_ms as u64) > (per_ms as u64 >> 1u64))
 }
 
 /// Given a timestamp in milliseconds, blink period in milliseconds, and light controller: blink a
@@ -34,10 +34,22 @@ mod tests {
     #[test]
     fn test_signal_high_first_half_low_second_half() {
         let per_ms = 1000;
-        assert!(signal_for_time(0, per_ms),   "should be high at start of period");
-        assert!(signal_for_time(499, per_ms), "should be high just before midpoint");
-        assert!(!signal_for_time(501, per_ms), "should be low just after midpoint");
-        assert!(!signal_for_time(999, per_ms), "should be low at end of period");
+        assert!(
+            signal_for_time(0, per_ms),
+            "should be high at start of period"
+        );
+        assert!(
+            signal_for_time(499, per_ms),
+            "should be high just before midpoint"
+        );
+        assert!(
+            !signal_for_time(501, per_ms),
+            "should be low just after midpoint"
+        );
+        assert!(
+            !signal_for_time(999, per_ms),
+            "should be low at end of period"
+        );
     }
 
     #[test]

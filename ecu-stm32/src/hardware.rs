@@ -1,12 +1,12 @@
 //! Mock ECU hardware interface - owns controller and CPU peripherals. All hardware interraction
 //! is done through ECUHardware.
-use stm32f7xx_hal::prelude::*;
+use ecu_core::engine::{CrankPositionSensor, CylinderOutputs, Throttle};
+use ecu_core::input::{PedalInput, SwitchInput};
+use ecu_core::lighting::LightController;
 use stm32f7xx_hal::gpio::{Input, Output, Pin, PinState, PullDown, PushPull};
 use stm32f7xx_hal::pac::Peripherals;
+use stm32f7xx_hal::prelude::*;
 use stm32f7xx_hal::timer::SysDelay;
-use ecu_core::engine::{CrankPositionSensor, CylinderOutputs, Throttle};
-use ecu_core::lighting::LightController;
-use ecu_core::input::{PedalInput, SwitchInput};
 
 // region engine-impls
 
@@ -29,10 +29,22 @@ impl SimCrank {
 }
 
 /// No-op cylinder outputs — placeholder until ignition coil drivers are wired up.
-pub struct StubCylinders;
+pub struct Cylinders {
+    cyl_1: Pin<'E', 15, Output<PushPull>>,
+    cyl_2: Pin<'E', 14, Output<PushPull>>,
+    cyl_3: Pin<'E', 12, Output<PushPull>>,
+    cyl_4: Pin<'E', 10, Output<PushPull>>,
+}
 
-impl CylinderOutputs for StubCylinders {
-    fn set_all(&mut self, _states: [bool; 4]) {}
+impl CylinderOutputs for Cylinders {
+    fn set_all(&mut self, _states: [bool; 4]) {
+        // Note with a combination of gpio::Pin::erase() from stm32f7xx_hal and an array in "Cylinders"
+        // to do this much  cleaner but... for 4 pins, it seems unnecessary for now.
+        self.cyl_1.set_state(PinState::from(_states[0]));
+        self.cyl_2.set_state(PinState::from(_states[1]));
+        self.cyl_3.set_state(PinState::from(_states[2]));
+        self.cyl_4.set_state(PinState::from(_states[3]));
+    }
 }
 
 /// Stub for future implementation of throttle TODO: Implement this.
@@ -48,7 +60,7 @@ impl Throttle for StubThrottle {
 
 // region i/o
 
-/// A single push-pull GPIO output implementing `LightController`.
+/// A single push-pull GPIO output
 pub struct HwOutputLight<const PORT: char, const PIN: u8>(pub Pin<PORT, PIN, Output<PushPull>>);
 
 impl<const PORT: char, const PIN: u8> LightController for HwOutputLight<PORT, PIN> {
@@ -88,21 +100,21 @@ pub struct ECUHardware {
     pub timer: SysDelay,
 
     // Engine
-    pub crank:     SimCrank,
-    pub cylinders: StubCylinders,
-    pub throttle:  StubThrottle,
+    pub crank: SimCrank,
+    pub cylinders: Cylinders,
+    pub throttle: StubThrottle,
 
     // Outputs
-    pub l_turn:          HwOutputLight<'E', 11>,
-    pub r_turn:          HwOutputLight<'F', 13>,
-    pub headlights_out:  HwOutputLight<'E', 9>,
+    pub l_turn: HwOutputLight<'E', 11>,
+    pub r_turn: HwOutputLight<'F', 13>,
+    pub headlights_out: HwOutputLight<'E', 9>,
 
     // Inputs
-    pub l_switch:         HwInputSwitch<'B', 8>,
-    pub r_switch:         HwInputSwitch<'B', 9>,
-    pub h_switch:         HwInputSwitch<'A', 5>,
+    pub l_switch: HwInputSwitch<'B', 8>,
+    pub r_switch: HwInputSwitch<'B', 9>,
+    pub h_switch: HwInputSwitch<'A', 5>,
     pub headlight_switch: HwInputSwitch<'A', 6>,
-    pub accel_pedal:      StubInputPedal,
+    pub accel_pedal: StubInputPedal,
 }
 
 impl ECUHardware {
@@ -121,19 +133,24 @@ impl ECUHardware {
         ECUHardware {
             timer: delay,
 
-            crank:     SimCrank { angle_deg: 0.0 },
-            cylinders: StubCylinders,
-            throttle:  StubThrottle,
+            crank: SimCrank { angle_deg: 0.0 },
+            cylinders: Cylinders {
+                cyl_1: gpioe.pe15.into_push_pull_output(),
+                cyl_2: gpioe.pe14.into_push_pull_output(),
+                cyl_3: gpioe.pe12.into_push_pull_output(),
+                cyl_4: gpioe.pe10.into_push_pull_output(),
+            },
+            throttle: StubThrottle,
 
-            l_turn:         HwOutputLight(gpioe.pe11.into_push_pull_output()),
-            r_turn:         HwOutputLight(gpiof.pf13.into_push_pull_output()),
+            l_turn: HwOutputLight(gpioe.pe11.into_push_pull_output()),
+            r_turn: HwOutputLight(gpiof.pf13.into_push_pull_output()),
             headlights_out: HwOutputLight(gpioe.pe9.into_push_pull_output()),
 
-            l_switch:         HwInputSwitch(gpiob.pb8.into_pull_down_input()),
-            r_switch:         HwInputSwitch(gpiob.pb9.into_pull_down_input()),
-            h_switch:         HwInputSwitch(gpioa.pa5.into_pull_down_input()),
+            l_switch: HwInputSwitch(gpiob.pb8.into_pull_down_input()),
+            r_switch: HwInputSwitch(gpiob.pb9.into_pull_down_input()),
+            h_switch: HwInputSwitch(gpioa.pa5.into_pull_down_input()),
             headlight_switch: HwInputSwitch(gpioa.pa6.into_pull_down_input()),
-            accel_pedal:      StubInputPedal,
+            accel_pedal: StubInputPedal,
         }
     }
 
