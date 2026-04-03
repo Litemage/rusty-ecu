@@ -3,6 +3,7 @@ use crate::stub::{
 };
 use ecu_core::engine::CrankPositionSensor;
 use ecu_core::input::PedalInput;
+use ecu_core::modeling::EngineModel;
 use ecu_core::{ECUSettings, ECUState, ecu_update};
 use eframe::Frame;
 use egui::{Context, Ui};
@@ -31,6 +32,7 @@ fn get_time_ms() -> u64 {
 // endregion
 
 pub struct ECUSimApp {
+    engine_model: EngineModel,
     virtual_crank: VirtualCrank,
     virtual_ignition: VirtualIgnition,
     virtual_throttle: VirtualThrottle,
@@ -51,6 +53,7 @@ pub struct ECUSimApp {
 impl ECUSimApp {
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         ECUSimApp {
+            engine_model: EngineModel::new(),
             virtual_crank: VirtualCrank::new(),
             virtual_ignition: VirtualIgnition::new(),
             virtual_throttle: VirtualThrottle::new(),
@@ -67,14 +70,15 @@ impl ECUSimApp {
             ecu_settings: ECUSettings {
                 signal_blink_period: 1000,
             },
-            last_run: Instant::now().sub(Duration::from_hours(10)),
+            last_run: Instant::now(),
         }
     }
 
     /// Run function periodically, on a loop
     pub fn run_app(&mut self) {
         let now = Instant::now();
-        if (now - self.last_run).as_millis() >= ECU_LOOP_PERIOD_MS as u128 {
+        let dur = now - self.last_run;
+        if dur.as_millis() >= ECU_LOOP_PERIOD_MS as u128 {
             self.last_run = now;
 
             ecu_update(
@@ -94,11 +98,12 @@ impl ECUSimApp {
                 &self.ecu_settings,
             );
 
-            // Advance the engine and pretend it's running
-            self.virtual_crank.increment(
-                ENGINE_IDLE
-                    + (ENGINE_ADVANCE_DEG * (self.virtual_throttle.read_throttle() as f32 / 255.0)),
+            let (omega, angle) = self.engine_model.engine_step(
+                self.virtual_throttle.read_throttle() as f32 / 255.0,
+                (dur.as_millis() as f32 / 1000.0),
             );
+
+            self.virtual_crank.set_angle(angle);
         }
     }
 }
@@ -152,6 +157,7 @@ impl eframe::App for ECUSimApp {
                 "Crank position sensor (degrees)",
             );
             raw_value_widget(ui, self.virtual_ignition.states, "Ignition states");
+            raw_value_widget(ui, self.engine_model.get_last_shaft_rpm(), "Last shaft speed (RPM)");
 
             ui.separator();
             ui.heading("ECU Inputs");

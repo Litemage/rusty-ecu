@@ -76,6 +76,11 @@ impl VirtualCrank {
             self.angle_deg -= 360.0;
         }
     }
+    
+    pub fn set_angle(&mut self, angle: f32)
+    {
+        self.angle_deg = angle;
+    }
 }
 
 // endregion

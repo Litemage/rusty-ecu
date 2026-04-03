@@ -4,7 +4,7 @@ use ecu_core::engine::{CrankPositionSensor, CylinderOutputs, Throttle};
 use ecu_core::input::{PedalInput, SwitchInput};
 use ecu_core::lighting::LightController;
 use stm32f7xx_hal::gpio::{Analog, Input, Output, Pin, PinState, PullDown, PushPull};
-use stm32f7xx_hal::pac::{Peripherals, ADC1};
+use stm32f7xx_hal::pac::{ADC1, Peripherals};
 use stm32f7xx_hal::prelude::*;
 use stm32f7xx_hal::timer::SysDelay;
 
@@ -49,7 +49,7 @@ impl CylinderOutputs for Cylinders {
 
 /// Stub for future implementation of throttle TODO: Implement this.
 pub struct HwThrottle {
-    val: u8
+    val: u8,
 }
 
 impl Throttle for HwThrottle {
@@ -101,19 +101,13 @@ impl PedalInput for StubInputPedal {
         // Assuming ADC1 has been set up by now...
 
         // Write channel to sequence slot 1 (channel 10)
-        self.adc.sqr3.modify(|_, w| {
-            w.sq1().variant(10)
-        });
+        self.adc.sqr3.modify(|_, w| w.sq1().variant(10));
 
         // clear EOC flag (prevents acting on a stale request in a moment)
-        self.adc.sr.modify(|_, w| {
-            w.eoc().clear_bit()
-        });
+        self.adc.sr.modify(|_, w| w.eoc().clear_bit());
 
         // Start conversion by setting SWSTART
-        self.adc.cr2.modify(|_, w| {
-            w.swstart().set_bit()
-        });
+        self.adc.cr2.modify(|_, w| w.swstart().set_bit());
 
         while self.adc.sr.read().eoc().bit_is_clear() {
             // Waiting for the end of the conversion
@@ -156,7 +150,6 @@ pub struct ECUHardware {
 impl ECUHardware {
     /// Initializes a new ECUHardware structure. Takes ownership of all peripherals
     pub fn init(dp: Peripherals, cp: cortex_m::Peripherals) -> Self {
-
         // region adc-notes
 
         // ===== NOTES ON ADC ===== // Before touching the ADC:
@@ -293,9 +286,7 @@ impl ECUHardware {
                 cyl_3: gpioe.pe12.into_push_pull_output(),
                 cyl_4: gpioe.pe10.into_push_pull_output(),
             },
-            throttle: HwThrottle {
-                val: 0
-            },
+            throttle: HwThrottle { val: 0 },
 
             l_turn: HwOutputLight(gpioe.pe11.into_push_pull_output()),
             r_turn: HwOutputLight(gpiof.pf13.into_push_pull_output()),
@@ -305,7 +296,7 @@ impl ECUHardware {
             r_switch: HwInputSwitch(gpiob.pb9.into_pull_down_input()),
             h_switch: HwInputSwitch(gpioa.pa5.into_pull_down_input()),
             headlight_switch: HwInputSwitch(gpioa.pa6.into_pull_down_input()),
-            accel_pedal: StubInputPedal { adc: dp.ADC1, },
+            accel_pedal: StubInputPedal { adc: dp.ADC1 },
         }
     }
 

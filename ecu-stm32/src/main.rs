@@ -6,11 +6,11 @@
 mod hardware;
 
 use cortex_m_rt::entry;
+use ecu_core::input::PedalInput;
 use ecu_core::{ECUSettings, ECUState, ecu_update};
 use hardware::ECUHardware;
 use panic_halt as _;
 use rtt_target::{rprint, rprintln, rtt_init_print};
-use ecu_core::input::PedalInput;
 // Required for the panic handler
 
 /// The delay executed at the end of each loop
@@ -63,7 +63,10 @@ fn main() -> ! {
             &ECU_SETTINGS,
         );
 
-        ecu_hw.crank.increment(CRANK_ADVANCE_IDLE + (CRANK_ADVANCE_THROTTLE * ecu_hw.throttle.get_throttle_pos() as f32));
+        ecu_hw.crank.increment(
+            CRANK_ADVANCE_IDLE
+                + (CRANK_ADVANCE_THROTTLE * ecu_hw.throttle.get_throttle_pos() as f32),
+        );
 
         // rprintln!("Accel pedal:  {:?}", ecu_hw.accel_pedal.read_pedal());
         // rprintln!("Throttle:     {:?}", ecu_hw.throttle.get_throttle_pos());

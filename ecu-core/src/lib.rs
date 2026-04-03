@@ -13,7 +13,7 @@ use crate::lighting::{LightController, signal_for_time};
 pub mod engine;
 pub mod input;
 pub mod lighting;
-
+pub mod modeling;
 // endregion
 
 // region ecu
