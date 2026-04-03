@@ -3,8 +3,8 @@
 use ecu_core::engine::{CrankPositionSensor, CylinderOutputs, Throttle};
 use ecu_core::input::{PedalInput, SwitchInput};
 use ecu_core::lighting::LightController;
-use stm32f7xx_hal::gpio::{Input, Output, Pin, PinState, PullDown, PushPull};
-use stm32f7xx_hal::pac::Peripherals;
+use stm32f7xx_hal::gpio::{Analog, Input, Output, Pin, PinState, PullDown, PushPull};
+use stm32f7xx_hal::pac::{Peripherals, ADC1};
 use stm32f7xx_hal::prelude::*;
 use stm32f7xx_hal::timer::SysDelay;
 
@@ -48,11 +48,20 @@ impl CylinderOutputs for Cylinders {
 }
 
 /// Stub for future implementation of throttle TODO: Implement this.
-pub struct StubThrottle;
+pub struct HwThrottle {
+    val: u8
+}
 
-impl Throttle for StubThrottle {
+impl Throttle for HwThrottle {
     fn set_throttle(&mut self, value: u8) {
-        // TODO: Implement this
+        self.val = value;
+    }
+}
+
+impl HwThrottle {
+    /// Returns the positon of the throttle as a proportion [0,255]
+    pub fn get_throttle_pos(&self) -> u8 {
+        self.val
     }
 }
 
@@ -83,11 +92,38 @@ impl<const PORT: char, const PIN: u8> SwitchInput for HwInputSwitch<PORT, PIN> {
 }
 
 /// A stub where we will put an input pedal. TODO: Implement this.
-pub struct StubInputPedal;
+pub struct StubInputPedal {
+    adc: ADC1, // TODO: we'll need a custom solution for picking which ADC we use.... damnit
+}
 
 impl PedalInput for StubInputPedal {
     fn read_pedal(&self) -> u8 {
-        return 0;
+        // Assuming ADC1 has been set up by now...
+
+        // Write channel to sequence slot 1 (channel 10)
+        self.adc.sqr3.modify(|_, w| {
+            w.sq1().variant(10)
+        });
+
+        // clear EOC flag (prevents acting on a stale request in a moment)
+        self.adc.sr.modify(|_, w| {
+            w.eoc().clear_bit()
+        });
+
+        // Start conversion by setting SWSTART
+        self.adc.cr2.modify(|_, w| {
+            w.swstart().set_bit()
+        });
+
+        while self.adc.sr.read().eoc().bit_is_clear() {
+            // Waiting for the end of the conversion
+        }
+
+        // We got a conversion
+        let adc_code: u16 = (self.adc.dr.read().bits() & 0x0FFF) as u16;
+
+        // Figure out the proportion of "on" we are
+        (255.0 * (adc_code as f32 / 4096.0)) as u8
     }
 }
 
@@ -102,7 +138,7 @@ pub struct ECUHardware {
     // Engine
     pub crank: SimCrank,
     pub cylinders: Cylinders,
-    pub throttle: StubThrottle,
+    pub throttle: HwThrottle,
 
     // Outputs
     pub l_turn: HwOutputLight<'E', 11>,
@@ -120,14 +156,131 @@ pub struct ECUHardware {
 impl ECUHardware {
     /// Initializes a new ECUHardware structure. Takes ownership of all peripherals
     pub fn init(dp: Peripherals, cp: cortex_m::Peripherals) -> Self {
+
+        // region adc-notes
+
+        // ===== NOTES ON ADC ===== // Before touching the ADC:
+        // - We need to use the RCC to enable the ADC1 digital clock (Claude caught this)
+        // - Delay ~16 CPU cycles
+
+        // TO POWER ON THE ADC:
+        // - Set the ADON bit in the ADC_CR2 register.
+        // - Wait for about 600 CPU (@216MHHz) cycles before using ADC (t_STAB = 2us typ, 3us max)
+        // - Conversion starts when either the SWSTART or the JSWSTART bit is set
+        // - Clear ADON to stop conversion and power down ADC
+        // (datasheet: 15.3.1)
+
+        // ADC CLOCKS
+        // ADC Max clock: 36MHz
+        // APB2 freq: (Max: 108MHz
+        // - ADC requires "ADCCLK" sources from APB2 clock, divided by a prescaler.
+        //   I think we'll have to set up this clock (correct, you need to go into the APB2EN register
+        //   and enable the ADC1 clock)
+        // - Digital interface is equal to APB2, and can be enabled/disabled through the RCC_APB2ENR reg
+        // (datahsset 15.3.3)
+
+        // GROUPS
+        // - Conversions can happen in any order by configuring the ADC_SQRx registers for regular channels
+
+        // SINGLE CONVERSTION MODE
+        // - CONT bit must be 0
+        // - Started by any of: SWSTART in ADC_CR2 for reg channels. JSWSTART for injected, or external trigger for injected
+        //   I imagine we will use regular channels
+        // (datasheet 15.3.5)
+
+        // CONVERSION TIMING
+        // - After 15 clock cycles, data is ready: Reading from the ADC_DR regiister auto clears
+        //   the EOC bit.
+        // (datasheet 15.3.7)
+
+        // ALIGNMENT
+        // - ALIGN bit in ADC_CR2 selects left or right-aligned data in ADC data registers
+        // (datasheet 15.4)
+
+        // CONVERSION
+        // - RES bits are used to select ADC bits
+        // (datasheet 15.7)
+
+        // (15.3 is ADC registers description)
+        // ===== END ======
+
+        // DEFAULTS NOTES
+        // REG: ADC_CR1
+        // - ADC is by default, at 12 bits
+        // - AWD (Analog Watch Dog) is disabled by default, on both reg and inj
+        // - DISCON mode defaults OK (DISABLED)
+        // - SCAN mode disabled
+        // - Interrupts OFF
+        // REG: ADC_CR2
+        // - CONT mode off
+        // - DMA disabled
+        // - ALIGN ok (right-aligned)
+        // - (datasheet 15.13.11) ADC_SQR3 -> Set SQ1[4:0] to channel number of current ADC
+        //   note that length of sequence is left at "1" by default which is what we want for now
+        // - (datashheet 15.13.16) ADC_CCR. Will need to set the proper prescaler for ADC. See
+        //   datasheet for maximum ADC clock frequency, and adjust accordingly.
+        //
+        // - (datasheet 15.13.14) ADC_DR regular data register which contains converted data.
+
+        // ADC READ NOTES
+        // - Make sure to clear EOC *before* setting SWSTART to avoid stale flag
+        // - Do NOT need seperate clear after reading ADC_DR
+        // (datasheet 15.3.7, 15.13.1)
+
+        // endregion
+
+        // Initialize the ADC...
+        // NOTE: We are on pin PC0 for throttle which is: ADC1_IN10 (channel 10)
+
+        // Enable the clock controlling the digital ADC interfaces - note the clock will be
+        // enabled for a brief moment before the real clock is configured by the HAL
+        dp.RCC.apb2enr.modify(|_, w| {
+            // (datasheet 5.3.14, pg 192)
+            // BIT 8: ADC1 EN
+            w.adc1en().enabled()
+        });
+
+        // Set up the clocks. Note that these functions do A LOT of behind-the-scenes work with
+        // configuring the clocks and adjusting prescalers.
         let rcc = dp.RCC.constrain();
         let clocks = rcc.cfgr.sysclk(216.MHz()).freeze();
 
+        // Delay for 16 clock cycles to allow clock to stabilize (source???)
+        cortex_m::asm::delay(16);
+
+        // Set up the ADC prescaler
+        // We know for our situation APB2 is running at 108MHz, and F_MAX for ADC is 36MHz
+        // so, the scaler has to be at least 4
+        dp.ADC_COMMON.ccr.modify(|_, w| {
+            // BIT[17:16] - ADCPRE - set to 0b01, which is /4 scaler
+            w.adcpre().bits(0b01)
+        });
+
+        // NOTE: ADC1_CR1 needs no modifications, we are using reset defaults
+        // NOTE: ADC_CR2 needs no modification either, using reset defaults
+        // NOTE: ADC_SQR1 needs no modification, but sets the length of ADC sequence (we use only 1)
+        // NOTE: ADC_SMPR1 defaults are OK for sampling time on potentiometers, but may need to change
+
+        // Enable the ADC
+        dp.ADC1.cr2.modify(|_, w| {
+            // ADC_CR2 Bit[0] - ADCON, turns on the ADC
+            w.adon().enabled()
+        });
+
+        // Wait to allow the ADC to stabilize (~500 cpu cycles) or 2-3 us
+        cortex_m::asm::delay(500);
+
+        // Get various GPIO ports
         let gpioa = dp.GPIOA.split();
         let gpiob = dp.GPIOB.split();
+        let gpioc = dp.GPIOC.split();
         let gpioe = dp.GPIOE.split();
         let gpiof = dp.GPIOF.split();
 
+        // Set accel pedal pin as analog
+        gpioc.pc0.into_analog();
+
+        // Set up the delay
         let delay = cp.SYST.delay(&clocks);
 
         ECUHardware {
@@ -140,7 +293,9 @@ impl ECUHardware {
                 cyl_3: gpioe.pe12.into_push_pull_output(),
                 cyl_4: gpioe.pe10.into_push_pull_output(),
             },
-            throttle: StubThrottle,
+            throttle: HwThrottle {
+                val: 0
+            },
 
             l_turn: HwOutputLight(gpioe.pe11.into_push_pull_output()),
             r_turn: HwOutputLight(gpiof.pf13.into_push_pull_output()),
@@ -150,7 +305,7 @@ impl ECUHardware {
             r_switch: HwInputSwitch(gpiob.pb9.into_pull_down_input()),
             h_switch: HwInputSwitch(gpioa.pa5.into_pull_down_input()),
             headlight_switch: HwInputSwitch(gpioa.pa6.into_pull_down_input()),
-            accel_pedal: StubInputPedal,
+            accel_pedal: StubInputPedal { adc: dp.ADC1, },
         }
     }
 
